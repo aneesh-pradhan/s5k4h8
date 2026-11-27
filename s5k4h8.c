@@ -6,7 +6,9 @@
  * driver (Fuzhou Rockchip Electronics Co., Ltd., 2017). Mode select at
  * 0x0100 is written as an 8-bit value (0x01 stream / 0x00 standby).
  *
- * Uses the modern V4L2 subdev active-state API (init_state, enable_streams).
+ * Uses the V4L2 subdev active-state API (init_state, enable_streams).
+ * set_fmt and get_selection take a v4l2_subdev_client_info pointer;
+ * in-kernel callers pass NULL.
  *
  * Copyright (C) 2017 Fuzhou Rockchip Electronics Co., Ltd.
  * Copyright (C) 2026 Aneesh Pradhan <aneeshpradhan@acm.org>
@@ -556,6 +558,7 @@ static void s5k4h8_update_pad_format(const struct s5k4h8_mode *mode,
 }
 
 static int s5k4h8_set_pad_format(struct v4l2_subdev *sd,
+				 const struct v4l2_subdev_client_info *ci,
 				 struct v4l2_subdev_state *state,
 				 struct v4l2_subdev_format *fmt)
 {
@@ -632,6 +635,7 @@ static int s5k4h8_enum_frame_size(struct v4l2_subdev *sd,
 }
 
 static int s5k4h8_get_selection(struct v4l2_subdev *sd,
+				const struct v4l2_subdev_client_info *ci,
 				struct v4l2_subdev_state *state,
 				struct v4l2_subdev_selection *sel)
 {
@@ -724,7 +728,7 @@ static int s5k4h8_init_state(struct v4l2_subdev *sd,
 		},
 	};
 
-	return s5k4h8_set_pad_format(sd, state, &fmt);
+	return s5k4h8_set_pad_format(sd, NULL, state, &fmt);
 }
 
 static const struct v4l2_subdev_video_ops s5k4h8_video_ops = {
