@@ -31,7 +31,17 @@ jobs:
           set -euo pipefail
           CP="$RUNNER_TEMP/media/scripts/checkpatch.pl"
           "$CP" --no-tree --strict -f s5k4h8.c
-          "$CP" --no-tree --strict patches/0001-*.patch patches/0002-*.patch
+          # A path that `git ls-files` returns is checked as a source file
+          # (diff against /dev/null), not as a kernel series. These files
+          # are tracked, so a blank diff context line and the format-patch
+          # signature look like trailing whitespace. Parse them from a
+          # directory that is not this repository.
+          work=$(mktemp -d)
+          cp patches/0001-*.patch patches/0002-*.patch "$work/"
+          (
+            cd "$work"
+            "$CP" --no-tree --strict ./*.patch
+          )
 
   build:
     runs-on: ubuntu-latest

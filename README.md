@@ -343,12 +343,17 @@ Before mailing, rebase onto the current
 new drivers, and that branch can be rebased, so it is not the commit
 stored here.
 
-`checkpatch.pl --strict` from that media tree reports no errors,
-warnings, or checks on `s5k4h8.c` or on either patch. `W=1` compile of
-`s5k4h8.o` is clean. Running `checkpatch -f` on the standalone yaml
-warns `EMBEDDED_FILENAME` because `$id` contains the filename. The same
-line inside `patches/0001` is clean, which is how upstream bindings are
-reviewed.
+`checkpatch.pl --strict -f s5k4h8.c` reports nothing. The same script
+is clean on `patches/0001` and `patches/0002` when they are parsed as a
+series. Run that from a directory that is not this repository: inside
+it, `checkpatch` sees a tracked `*.patch` path via `git ls-files` and
+checks the file as source, which flags blank diff context and the
+`format-patch` signature. `W=1` compile of `s5k4h8.o` is clean.
+`checkpatch -f` on the standalone yaml warns `EMBEDDED_FILENAME`
+because `$id` contains the filename. The same line inside `patches/0001`
+is clean, which is how upstream bindings are reviewed. CI checks the
+driver with `-f` and the two patches as a series. It does not run `-f`
+on the yaml.
 
 Still out of scope: OTP and AWB calibration, horizontal and vertical
 flip, test pattern, and a perry dts. CI compiles the object on x86_64.
