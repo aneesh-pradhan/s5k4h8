@@ -1,6 +1,6 @@
-From 39d46a21bdf66cf1916b930f93bd3f6548ed2360 Mon Sep 17 00:00:00 2001
+From ba56d606f89b854dc586228ea63ef937f97ef06c Mon Sep 17 00:00:00 2001
 From: Aneesh Pradhan <aneeshpradhan@acm.org>
-Date: Fri, 24 Jul 2026 18:25:43 +0000
+Date: Fri, 27 Nov 2026 07:06:58 +0000
 Subject: [PATCH 2/2] media: i2c: add Samsung S5K4H8 image sensor driver
 
 Add a V4L2 sub-device driver for the Samsung S5K4H8 8MP raw sensor
@@ -8,68 +8,63 @@ Add a V4L2 sub-device driver for the Samsung S5K4H8 8MP raw sensor
 sequences are adapted from the Rockchip vendor driver; register I/O
 uses mainline v4l2-cci.
 
-The driver uses the modern V4L2 subdev active-state API
-(init_state, enable_streams / disable_streams, v4l2_subdev_init_finalize).
-Stream start selects the mode from the active subdev state format.
+The driver uses the subdev active-state API (init_state,
+enable_streams / disable_streams, v4l2_subdev_init_finalize).
+set_fmt and get_selection take the client-info argument required by
+this media tree. In-kernel callers pass NULL.
 
 Supported modes:
-  - 3264x2448 SGRBG10 @ ~25 fps
-  - 1632x1224 SGRBG10 2x2 binning @ ~30 fps
 
-Controls: exposure, analogue gain, VBLANK, LINK_FREQ, PIXEL_RATE,
-fwnode Location/Rotation. Selection targets expose crop and native size.
-Power sequence: supplies -> MCLK -> XSHUTDOWN deassert + settle.
+- 3264x2448 SGRBG10 at about 25 fps
+- 1632x1224 SGRBG10 2x2 binning at about 30 fps
+
+Controls cover exposure, analogue gain, vertical blanking, link
+frequency, and pixel rate, plus fwnode location and rotation.
+Selection targets expose crop and the native array size. Both modes
+read the full array; binning is not a windowed crop.
+
+Power sequence: supplies, then MCLK, then XSHUTDOWN deassert and
+settle. Mode select at 0x0100 is an 8-bit write.
 
 Tested on Motorola Moto E4 (perry / MSM8917) with mainline CAMSS and
-libcamera (~24 fps full-resolution capture).
+libcamera, about 24 fps at 3264x2448. This series is rebased onto
+media.git next so the subdev callbacks match that tree.
 
-Assisted-by: Gemini:3.6-Flash
 Signed-off-by: Aneesh Pradhan <aneeshpradhan@acm.org>
 ---
- MAINTAINERS                |   9 +
- drivers/media/i2c/Kconfig  |  13 +
+ MAINTAINERS                |   1 +
+ drivers/media/i2c/Kconfig  |  10 +
  drivers/media/i2c/Makefile |   1 +
- drivers/media/i2c/s5k4h8.c | 941 +++++++++++++++++++++++++++++++++++++
- 4 files changed, 964 insertions(+)
+ drivers/media/i2c/s5k4h8.c | 945 +++++++++++++++++++++++++++++++++++++
+ 4 files changed, 957 insertions(+)
  create mode 100644 drivers/media/i2c/s5k4h8.c
 
 diff --git a/MAINTAINERS b/MAINTAINERS
-index 76a2232..6ea939b 100644
+index 3963f7050..2a63760f9 100644
 --- a/MAINTAINERS
 +++ b/MAINTAINERS
-@@ -6,6 +6,15 @@ T:	git git://linuxtv.org/media_tree.git
- F:	Documentation/devicetree/bindings/media/i2c/samsung,s5k3m5.yaml
- F:	drivers/media/i2c/s5k3m5.c
- 
-+SAMSUNG S5K4H8 CAMERA DRIVER
-+M:	Aneesh Pradhan <aneeshpradhan@acm.org>
-+L:	linux-media@vger.kernel.org
-+S:	Maintained
-+T:	git git://linuxtv.org/media_tree.git
-+F:	Documentation/devicetree/bindings/media/i2c/samsung,s5k4h8.yaml
-+F:	drivers/media/i2c/s5k4h8.c
-+
-+
- SAMSUNG S5K5BAF CAMERA DRIVER
- M:	Someone <someone@example.com>
+@@ -25012,6 +25012,7 @@ M:	Aneesh Pradhan <aneeshpradhan@acm.org>
  L:	linux-media@vger.kernel.org
+ S:	Maintained
+ F:	Documentation/devicetree/bindings/media/i2c/samsung,s5k4h8.yaml
++F:	drivers/media/i2c/s5k4h8.c
+ 
+ SAMSUNG S5K5BAF CAMERA DRIVER
+ M:	Sylwester Nawrocki <s.nawrocki@samsung.com>
 diff --git a/drivers/media/i2c/Kconfig b/drivers/media/i2c/Kconfig
-index a9057d7..eaf8954 100644
+index 9e42b380e..62ecab145 100644
 --- a/drivers/media/i2c/Kconfig
 +++ b/drivers/media/i2c/Kconfig
-@@ -4,6 +4,19 @@ config VIDEO_S5K3M5
+@@ -881,6 +881,16 @@ config VIDEO_S5K3M5
  	  To compile this driver as a module, choose M here: the
  	  module will be called s5k3m5.
  
 +config VIDEO_S5K4H8
-+	tristate "Samsung S5K4H8 image sensor support"
-+	depends on I2C && VIDEO_DEV
-+	select MEDIA_CONTROLLER
-+	select VIDEO_V4L2_SUBDEV_API
++	tristate "Samsung S5K4H8 sensor support"
 +	select V4L2_CCI_I2C
 +	help
-+	  This is a Video4Linux2 sensor driver for the Samsung S5K4H8
-+	  8 megapixel camera.
++	  This is a V4L2 sensor driver for the Samsung S5K4H8 8MP raw
++	  camera sensor.
 +
 +	  To compile this driver as a module, choose M here: the
 +	  module will be called s5k4h8.
@@ -78,20 +73,23 @@ index a9057d7..eaf8954 100644
  	tristate "Samsung S5K5BAF sensor support"
  	help
 diff --git a/drivers/media/i2c/Makefile b/drivers/media/i2c/Makefile
-index dab3b1e..cf53a4d 100644
+index 604b19dbc..fa6ef7b82 100644
 --- a/drivers/media/i2c/Makefile
 +++ b/drivers/media/i2c/Makefile
-@@ -1,3 +1,4 @@
+@@ -137,6 +137,7 @@ obj-$(CONFIG_VIDEO_RDACM21) += rdacm21.o
+ obj-$(CONFIG_VIDEO_RJ54N1) += rj54n1cb0c.o
+ obj-$(CONFIG_VIDEO_S5C73M3) += s5c73m3/
  obj-$(CONFIG_VIDEO_S5K3M5) += s5k3m5.o
 +obj-$(CONFIG_VIDEO_S5K4H8) += s5k4h8.o
  obj-$(CONFIG_VIDEO_S5K5BAF) += s5k5baf.o
+ obj-$(CONFIG_VIDEO_S5K6A3) += s5k6a3.o
  obj-$(CONFIG_VIDEO_S5KJN1) += s5kjn1.o
 diff --git a/drivers/media/i2c/s5k4h8.c b/drivers/media/i2c/s5k4h8.c
 new file mode 100644
-index 0000000..12e51d4
+index 000000000..754a76949
 --- /dev/null
 +++ b/drivers/media/i2c/s5k4h8.c
-@@ -0,0 +1,941 @@
+@@ -0,0 +1,945 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
 + * Samsung S5K4H8 8MP raw camera sensor driver
@@ -100,7 +98,9 @@ index 0000000..12e51d4
 + * driver (Fuzhou Rockchip Electronics Co., Ltd., 2017). Mode select at
 + * 0x0100 is written as an 8-bit value (0x01 stream / 0x00 standby).
 + *
-+ * Uses the modern V4L2 subdev active-state API (init_state, enable_streams).
++ * Uses the V4L2 subdev active-state API (init_state, enable_streams).
++ * set_fmt and get_selection take a v4l2_subdev_client_info pointer;
++ * in-kernel callers pass NULL.
 + *
 + * Copyright (C) 2017 Fuzhou Rockchip Electronics Co., Ltd.
 + * Copyright (C) 2026 Aneesh Pradhan <aneeshpradhan@acm.org>
@@ -650,6 +650,7 @@ index 0000000..12e51d4
 +}
 +
 +static int s5k4h8_set_pad_format(struct v4l2_subdev *sd,
++				 const struct v4l2_subdev_client_info *ci,
 +				 struct v4l2_subdev_state *state,
 +				 struct v4l2_subdev_format *fmt)
 +{
@@ -726,6 +727,7 @@ index 0000000..12e51d4
 +}
 +
 +static int s5k4h8_get_selection(struct v4l2_subdev *sd,
++				const struct v4l2_subdev_client_info *ci,
 +				struct v4l2_subdev_state *state,
 +				struct v4l2_subdev_selection *sel)
 +{
@@ -818,7 +820,7 @@ index 0000000..12e51d4
 +		},
 +	};
 +
-+	return s5k4h8_set_pad_format(sd, state, &fmt);
++	return s5k4h8_set_pad_format(sd, NULL, state, &fmt);
 +}
 +
 +static const struct v4l2_subdev_video_ops s5k4h8_video_ops = {

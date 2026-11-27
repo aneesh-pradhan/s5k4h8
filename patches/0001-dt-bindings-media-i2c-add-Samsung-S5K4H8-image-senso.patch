@@ -1,6 +1,6 @@
-From eb0608905497a763e17f447117db57281ff038a4 Mon Sep 17 00:00:00 2001
+From b018cabafc9d3622bfc81d8a65c0f30969840b2f Mon Sep 17 00:00:00 2001
 From: Aneesh Pradhan <aneeshpradhan@acm.org>
-Date: Fri, 24 Jul 2026 18:25:43 +0000
+Date: Fri, 27 Nov 2026 07:06:58 +0000
 Subject: [PATCH 1/2] dt-bindings: media: i2c: add Samsung S5K4H8 image sensor
 
 Document the Samsung S5K4H8 8 megapixel CMOS image sensor. The sensor
@@ -11,16 +11,16 @@ Required supplies are avdd, dovdd, and dvdd. Optional clock-names is
 "mclk". Orientation and rotation come from the common video-interface
 devices schema.
 
-Assisted-by: Gemini:3.6-Flash
 Signed-off-by: Aneesh Pradhan <aneeshpradhan@acm.org>
 ---
  .../bindings/media/i2c/samsung,s5k4h8.yaml    | 119 ++++++++++++++++++
- 1 file changed, 119 insertions(+)
+ MAINTAINERS                                   |   6 +
+ 2 files changed, 125 insertions(+)
  create mode 100644 Documentation/devicetree/bindings/media/i2c/samsung,s5k4h8.yaml
 
 diff --git a/Documentation/devicetree/bindings/media/i2c/samsung,s5k4h8.yaml b/Documentation/devicetree/bindings/media/i2c/samsung,s5k4h8.yaml
 new file mode 100644
-index 0000000..bd3f420
+index 000000000..bd3f4203d
 --- /dev/null
 +++ b/Documentation/devicetree/bindings/media/i2c/samsung,s5k4h8.yaml
 @@ -0,0 +1,119 @@
@@ -143,6 +143,23 @@ index 0000000..bd3f420
 +            };
 +        };
 +    };
+diff --git a/MAINTAINERS b/MAINTAINERS
+index c08aade46..3963f7050 100644
+--- a/MAINTAINERS
++++ b/MAINTAINERS
+@@ -25007,6 +25007,12 @@ T:	git git://linuxtv.org/media_tree.git
+ F:	Documentation/devicetree/bindings/media/i2c/samsung,s5k3m5.yaml
+ F:	drivers/media/i2c/s5k3m5.c
+ 
++SAMSUNG S5K4H8 CAMERA DRIVER
++M:	Aneesh Pradhan <aneeshpradhan@acm.org>
++L:	linux-media@vger.kernel.org
++S:	Maintained
++F:	Documentation/devicetree/bindings/media/i2c/samsung,s5k4h8.yaml
++
+ SAMSUNG S5K5BAF CAMERA DRIVER
+ M:	Sylwester Nawrocki <s.nawrocki@samsung.com>
+ M:	Andrzej Hajda <andrzej.hajda@intel.com>
 -- 
 2.43.0
 
